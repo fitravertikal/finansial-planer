@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { formatIDR, sumRupiah } from './money';
+import { formatIDR, groupDigits, parseAmountInput, sumRupiah } from './money';
 
 describe('formatIDR', () => {
   it('groups thousands with dots and no decimals', () => {
@@ -20,5 +20,25 @@ describe('sumRupiah', () => {
   it('sums integer amounts', () => {
     expect(sumRupiah([1000, 2000, 3000])).toBe(6000);
     expect(sumRupiah([])).toBe(0);
+  });
+});
+
+describe('parseAmountInput', () => {
+  it('strips non-digits and returns whole rupiah', () => {
+    expect(parseAmountInput('Rp 1.500.000')).toBe(1500000);
+    expect(parseAmountInput('1500000')).toBe(1500000);
+    expect(parseAmountInput('1,500,000')).toBe(1500000);
+  });
+
+  it('returns 0 for empty or non-numeric input', () => {
+    expect(parseAmountInput('')).toBe(0);
+    expect(parseAmountInput('abc')).toBe(0);
+  });
+});
+
+describe('groupDigits', () => {
+  it('groups with dots, empty for zero', () => {
+    expect(groupDigits(1500000)).toBe('1.500.000');
+    expect(groupDigits(0)).toBe('');
   });
 });
