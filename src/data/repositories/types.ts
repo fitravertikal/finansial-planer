@@ -16,6 +16,7 @@ export interface CategoryRepo {
 
 export interface TransactionRepo {
   byMonth(month: string): Promise<Transaction[]>;
+  all(): Promise<Transaction[]>;
   put(txn: Transaction): Promise<void>;
   remove(id: string): Promise<void>;
 }

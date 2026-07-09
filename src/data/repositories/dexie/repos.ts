@@ -21,6 +21,7 @@ export function createCategoryRepo(db: FinansialDB): CategoryRepo {
 export function createTransactionRepo(db: FinansialDB): TransactionRepo {
   return {
     byMonth: (month: string) => db.transactions.where('month').equals(month).toArray(),
+    all: () => db.transactions.toArray(),
     put: async (txn: Transaction) => {
       await db.transactions.put(txn);
     },

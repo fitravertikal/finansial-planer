@@ -15,6 +15,11 @@ export function useTransactions(month: string) {
   });
 }
 
+/** All transactions across every month — for the multi-month trend chart. */
+export function useAllTransactions() {
+  return useQuery({ queryKey: [...KEY, 'all'], queryFn: () => transactionRepo.all() });
+}
+
 export function useSaveTransaction() {
   const qc = useQueryClient();
   return useMutation({

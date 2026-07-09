@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { calculateCategoryStatus, calculateMonthSummary, expenseSpentByCategory } from './budget';
+import {
+  calculateCategoryStatus,
+  calculateMonthSummary,
+  expenseSpentByCategory,
+  monthlyTotals,
+} from './budget';
 import { budgetId, type Budget, type Category, type Transaction } from './schemas';
 
 const NOW = '2026-07-01T00:00:00.000Z';
@@ -145,5 +150,12 @@ describe('calculateMonthSummary — July 2026 worked example', () => {
     expect(spent.get('cat-belanja')).toBe(1_000_000); // 1.2M - 200k refund
     expect(spent.has('cat-lain')).toBe(false); // the transfer is excluded
     expect(spent.get('cat-gaji')).toBeUndefined(); // income not counted
+  });
+
+  it('monthlyTotals returns income/expense per requested month, zero-filled', () => {
+    const series = monthlyTotals(txns, ['2026-06', '2026-07']);
+    expect(series).toHaveLength(2);
+    expect(series[0]).toEqual({ month: '2026-06', income: 0, expense: 0 }); // no June data
+    expect(series[1]).toEqual({ month: '2026-07', income: 12_000_000, expense: 5_000_000 });
   });
 });
