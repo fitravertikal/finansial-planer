@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { calculateCategoryStatus, calculateMonthSummary } from './budget';
+import { calculateCategoryStatus, calculateMonthSummary, expenseSpentByCategory } from './budget';
 import { budgetId, type Budget, type Category, type Transaction } from './schemas';
 
 const NOW = '2026-07-01T00:00:00.000Z';
@@ -137,5 +137,13 @@ describe('calculateMonthSummary — July 2026 worked example', () => {
     const kes = s.categories.find((c) => c.categoryId === 'cat-kesehatan')!;
     expect(kes.unbudgeted).toBe(true);
     expect(kes.spent).toBe(400_000);
+  });
+
+  it('expenseSpentByCategory nets refunds and excludes transfers', () => {
+    const spent = expenseSpentByCategory(MONTH, txns);
+    expect(spent.get('cat-makan')).toBe(1_650_000);
+    expect(spent.get('cat-belanja')).toBe(1_000_000); // 1.2M - 200k refund
+    expect(spent.has('cat-lain')).toBe(false); // the transfer is excluded
+    expect(spent.get('cat-gaji')).toBeUndefined(); // income not counted
   });
 });
