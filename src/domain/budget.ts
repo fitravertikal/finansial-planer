@@ -76,6 +76,30 @@ export function expenseSpentByCategory(month: string, txns: Transaction[]): Map<
   return map;
 }
 
+export interface MonthTotals {
+  month: string;
+  income: number;
+  expense: number;
+}
+
+/**
+ * Income vs (netted) expense per month, for a given ordered list of months —
+ * the series behind the spending-trend chart. Transfers excluded, refunds netted.
+ * Months with no data come back as zeros so the chart has a continuous axis.
+ */
+export function monthlyTotals(txns: Transaction[], months: string[]): MonthTotals[] {
+  const acc = new Map<string, { income: number; expense: number }>();
+  for (const m of months) acc.set(m, { income: 0, expense: 0 });
+  for (const t of txns) {
+    if (t.isTransfer) continue;
+    const bucket = acc.get(t.month);
+    if (!bucket) continue; // outside the requested window
+    if (t.type === 'income') bucket.income += t.amount;
+    else bucket.expense += expenseContribution(t);
+  }
+  return months.map((m) => ({ month: m, ...acc.get(m)! }));
+}
+
 /**
  * Compute the full month summary from raw rows. `txns` may include any months;
  * only rows whose `month` matches are considered.

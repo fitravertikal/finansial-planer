@@ -1,10 +1,13 @@
 import { useMemo } from 'react';
 import { useUiStore } from '../../store/ui';
 import { useActiveCategories } from '../../hooks/useCategories';
-import { useTransactions } from '../../hooks/useTransactions';
+import { useAllTransactions, useTransactions } from '../../hooks/useTransactions';
 import { useBudgets } from '../../hooks/useBudgets';
-import { calculateMonthSummary, type BudgetStatus } from '../../domain/budget';
+import { calculateMonthSummary, monthlyTotals, type BudgetStatus } from '../../domain/budget';
+import { addMonths } from '../../domain/dates';
 import { Money } from '../../components/Money';
+import { TrendChart } from './TrendChart';
+import { BreakdownChart, type Slice } from './BreakdownChart';
 
 const BAR: Record<BudgetStatus, string> = {
   on_track: 'bg-emerald-500',
@@ -27,10 +30,31 @@ export function DashboardScreen() {
   const { data: txns = [] } = useTransactions(month);
   const { data: budgets = [] } = useBudgets(month);
 
+  const { data: allTxns = [] } = useAllTransactions();
+
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const s = useMemo(
     () => calculateMonthSummary(month, txns, budgets, categories),
     [month, txns, budgets, categories],
+  );
+
+  // Trailing 6 months ending at the active month.
+  const trend = useMemo(() => {
+    const months = Array.from({ length: 6 }, (_, i) => addMonths(month, i - 5));
+    return monthlyTotals(allTxns, months);
+  }, [allTxns, month]);
+
+  // Expense composition for the donut.
+  const slices = useMemo<Slice[]>(
+    () =>
+      s.categories
+        .filter((c) => c.spent > 0)
+        .map((c) => ({
+          name: catMap.get(c.categoryId)?.name ?? 'Lain-lain',
+          value: c.spent,
+          color: catMap.get(c.categoryId)?.color ?? '#ccc',
+        })),
+    [s.categories, catMap],
   );
 
   const netPositive = s.net >= 0;
@@ -67,6 +91,20 @@ export function DashboardScreen() {
           {s.adherence === null ? '—' : `${Math.round(s.adherence * 100)}%`}
         </Stat>
       </div>
+
+      {/* spending trend (6 months) */}
+      <section>
+        <h2 className="mb-1 text-sm font-semibold">Tren 6 bulan</h2>
+        <TrendChart data={trend} />
+      </section>
+
+      {/* expense composition */}
+      {slices.length > 0 && (
+        <section>
+          <h2 className="mb-1 text-sm font-semibold">Komposisi pengeluaran</h2>
+          <BreakdownChart data={slices} />
+        </section>
+      )}
 
       {/* per-category, worst-first */}
       <section>
