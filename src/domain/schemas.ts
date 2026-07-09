@@ -35,6 +35,8 @@ export const Category = z.object({
   isDefault: z.boolean().default(false),
   sortOrder: z.number().int().default(0),
   createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime().optional(), // for sync LWW; falls back to createdAt
+  deletedAt: z.string().datetime().optional(), // sync tombstone
 });
 export type Category = z.infer<typeof Category>;
 
@@ -52,6 +54,7 @@ export const Transaction = z.object({
   recurringRuleId: Id.optional(), // set when generated from a RecurringRule
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  deletedAt: z.string().datetime().optional(), // sync tombstone (soft delete)
 });
 export type Transaction = z.infer<typeof Transaction>;
 
@@ -63,6 +66,7 @@ export const Budget = z.object({
   rollover: z.boolean().default(false), // wired for later; not surfaced in v1
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  deletedAt: z.string().datetime().optional(), // sync tombstone
 });
 export type Budget = z.infer<typeof Budget>;
 
@@ -81,6 +85,7 @@ export const RecurringRule = z.object({
   active: z.boolean().default(true),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
+  deletedAt: z.string().datetime().optional(), // sync tombstone (soft delete)
 });
 export type RecurringRule = z.infer<typeof RecurringRule>;
 
@@ -90,6 +95,11 @@ export const AppMeta = z.object({
   currency: z.literal('IDR'),
   defaultPaymentMethod: PaymentMethod.default('cash'),
   createdAt: z.string().datetime(),
+  // Sync config — LOCAL ONLY, never synced. The space key lives here (entered
+  // in Settings), never in the repo.
+  syncUrl: z.string().optional(),
+  syncKey: z.string().optional(),
+  lastSyncedAt: z.string().datetime().optional(),
 });
 export type AppMeta = z.infer<typeof AppMeta>;
 
@@ -98,7 +108,7 @@ export function budgetId(month: string, categoryId: string): string {
   return `${month}:${categoryId}`;
 }
 
-export const SCHEMA_VERSION = 2;
+export const SCHEMA_VERSION = 3;
 
 /** Versioned backup envelope — also the shape a future sync backend would use. */
 export const BackupFile = z.object({
