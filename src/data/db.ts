@@ -1,5 +1,5 @@
 import Dexie, { type Table } from 'dexie';
-import type { AppMeta, Budget, Category, Transaction } from '../domain/schemas';
+import type { AppMeta, Budget, Category, RecurringRule, Transaction } from '../domain/schemas';
 
 /**
  * IndexedDB (via Dexie) is the local source of truth. Indexes are chosen to
@@ -11,6 +11,7 @@ export class FinansialDB extends Dexie {
   transactions!: Table<Transaction, string>;
   categories!: Table<Category, string>;
   budgets!: Table<Budget, string>;
+  recurringRules!: Table<RecurringRule, string>;
   meta!: Table<AppMeta, string>;
 
   constructor(name = 'finansial-planer') {
@@ -20,6 +21,11 @@ export class FinansialDB extends Dexie {
       categories: 'id, type, sortOrder',
       budgets: 'id, month, [month+categoryId]',
       meta: 'id',
+    });
+    // v2: recurring rules + transactions gain an optional recurringRuleId index.
+    this.version(2).stores({
+      transactions: 'id, month, categoryId, date, recurringRuleId, [month+categoryId], [month+type]',
+      recurringRules: 'id, active',
     });
   }
 }

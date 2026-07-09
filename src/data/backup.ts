@@ -11,17 +11,18 @@ import type { FinansialDB } from './db';
 
 /** Assemble a versioned backup object from all tables. */
 export async function buildBackup(db: FinansialDB): Promise<BackupFile> {
-  const [meta, categories, transactions, budgets] = await Promise.all([
+  const [meta, categories, transactions, budgets, recurringRules] = await Promise.all([
     db.meta.toArray(),
     db.categories.toArray(),
     db.transactions.toArray(),
     db.budgets.toArray(),
+    db.recurringRules.toArray(),
   ]);
   return {
     format: 'finansial-planer-backup',
     schemaVersion: SCHEMA_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { meta, categories, transactions, budgets },
+    data: { meta, categories, transactions, budgets, recurringRules },
   };
 }
 
@@ -43,13 +44,28 @@ export function parseBackup(json: string): BackupFile {
  * (Merge-by-id is the natural later addition for sync.)
  */
 export async function restoreBackup(db: FinansialDB, backup: BackupFile): Promise<void> {
-  await db.transaction('rw', db.meta, db.categories, db.transactions, db.budgets, async () => {
-    await Promise.all([db.meta.clear(), db.categories.clear(), db.transactions.clear(), db.budgets.clear()]);
-    await Promise.all([
-      db.meta.bulkAdd(backup.data.meta),
-      db.categories.bulkAdd(backup.data.categories),
-      db.transactions.bulkAdd(backup.data.transactions),
-      db.budgets.bulkAdd(backup.data.budgets),
-    ]);
-  });
+  await db.transaction(
+    'rw',
+    db.meta,
+    db.categories,
+    db.transactions,
+    db.budgets,
+    db.recurringRules,
+    async () => {
+      await Promise.all([
+        db.meta.clear(),
+        db.categories.clear(),
+        db.transactions.clear(),
+        db.budgets.clear(),
+        db.recurringRules.clear(),
+      ]);
+      await Promise.all([
+        db.meta.bulkAdd(backup.data.meta),
+        db.categories.bulkAdd(backup.data.categories),
+        db.transactions.bulkAdd(backup.data.transactions),
+        db.budgets.bulkAdd(backup.data.budgets),
+        db.recurringRules.bulkAdd(backup.data.recurringRules),
+      ]);
+    },
+  );
 }

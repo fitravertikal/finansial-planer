@@ -2,6 +2,7 @@ import { db } from './db';
 import {
   createBudgetRepo,
   createCategoryRepo,
+  createRecurringRepo,
   createTransactionRepo,
 } from './repositories/dexie/repos';
 import { defaultCategories } from '../domain/categories';
@@ -15,6 +16,7 @@ import { SCHEMA_VERSION, type AppMeta } from '../domain/schemas';
 export const categoryRepo = createCategoryRepo(db);
 export const transactionRepo = createTransactionRepo(db);
 export const budgetRepo = createBudgetRepo(db);
+export const recurringRepo = createRecurringRepo(db);
 
 export { db };
 

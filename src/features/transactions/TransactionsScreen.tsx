@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react';
 import { useUiStore } from '../../store/ui';
 import { useActiveCategories } from '../../hooks/useCategories';
 import { useDeleteTransaction, useSaveTransaction, useTransactions } from '../../hooks/useTransactions';
+import { useRecurringRules } from '../../hooks/useRecurring';
+import { buildRecurringTransaction, pendingRules } from '../../domain/recurring';
 import { Money } from '../../components/Money';
 import { TransactionForm } from './TransactionForm';
 import { makeTransaction, type TxnInput } from './model';
@@ -13,11 +15,17 @@ export function TransactionsScreen() {
   const month = useUiStore((s) => s.activeMonth);
   const { data: txns = [] } = useTransactions(month);
   const { data: categories = [] } = useActiveCategories();
+  const { data: rules = [] } = useRecurringRules();
   const save = useSaveTransaction();
   const del = useDeleteTransaction();
   const [editing, setEditing] = useState<Editing>(null);
 
   const catName = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
+  const pending = useMemo(() => pendingRules(rules, txns, month), [rules, txns, month]);
+
+  function postPending() {
+    for (const rule of pending) save.mutate(buildRecurringTransaction(rule, month));
+  }
 
   const { income, expense } = useMemo(() => {
     let income = 0;
@@ -55,6 +63,18 @@ export function TransactionsScreen() {
           + Catat
         </button>
       </header>
+
+      {pending.length > 0 && (
+        <div className="flex items-center justify-between gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
+          <span className="text-amber-800">{pending.length} transaksi rutin untuk bulan ini</span>
+          <button
+            onClick={postPending}
+            className="shrink-0 rounded-lg bg-amber-500 px-3 py-1.5 font-semibold text-white"
+          >
+            Tambahkan
+          </button>
+        </div>
+      )}
 
       {editing && (
         <div className="relative z-10 rounded-xl border border-gray-200 p-4 shadow-sm mb-20">

@@ -1,4 +1,4 @@
-import type { Budget, Category, Transaction } from '../../domain/schemas';
+import type { Budget, Category, RecurringRule, Transaction } from '../../domain/schemas';
 
 /**
  * Repository interfaces — the seam that keeps the UI and domain independent of
@@ -24,4 +24,10 @@ export interface TransactionRepo {
 export interface BudgetRepo {
   byMonth(month: string): Promise<Budget[]>;
   upsert(budget: Budget): Promise<void>;
+}
+
+export interface RecurringRepo {
+  all(): Promise<RecurringRule[]>;
+  put(rule: RecurringRule): Promise<void>;
+  remove(id: string): Promise<void>;
 }
