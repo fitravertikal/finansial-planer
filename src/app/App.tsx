@@ -7,10 +7,7 @@ import { Layout } from './Layout';
 import { TransactionsScreen } from '../features/transactions/TransactionsScreen';
 import { CategoriesScreen } from '../features/categories/CategoriesScreen';
 import { BudgetsScreen } from '../features/budgets/BudgetsScreen';
-
-function ComingSoon({ label }: { label: string }) {
-  return <p className="py-12 text-center text-sm text-gray-400">{label} — menyusul.</p>;
-}
+import { DashboardScreen } from '../features/dashboard/DashboardScreen';
 
 const router = createHashRouter([
   {
@@ -20,7 +17,7 @@ const router = createHashRouter([
       { index: true, element: <TransactionsScreen /> },
       { path: 'categories', element: <CategoriesScreen /> },
       { path: 'budgets', element: <BudgetsScreen /> },
-      { path: 'dashboard', element: <ComingSoon label="Dashboard (M4)" /> },
+      { path: 'dashboard', element: <DashboardScreen /> },
     ],
   },
 ]);
