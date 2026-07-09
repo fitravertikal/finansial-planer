@@ -1,11 +1,17 @@
 # Sync Backend — Cloudflare Worker + D1
 
+> ⚠️ **Security:** The **Space Key** is a live credential (bearer token for the
+> sync API). It must **never** be committed here — this repo is public. The key
+> is configured **per-device in the app's Settings** and stored locally only.
+> Any key found in this file's git history has been **rotated and revoked** —
+> treat it as dead. See `.agents/tasks/rotate-sync-key.md`.
+
 ## Endpoints
 
 | Config | Value |
 |---|---|
 | **Worker URL** | `https://sync.epslab.id` |
-| **Space Key** | `mtx-oNLYOH1JH3BkwJ3NM3rgQADTLcofNK3-0IbuLE8` |
+| **Space Key** | _set in the app's Settings on each device — never commit_ |
 
 ## API Contract
 
