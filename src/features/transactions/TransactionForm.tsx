@@ -51,6 +51,7 @@ export function TransactionForm({
   }
 
   function submit(e: React.FormEvent) {
+    e.stopPropagation();
     e.preventDefault();
     if (!canSave) return;
     onSubmit({
@@ -170,7 +171,7 @@ export function TransactionForm({
           Simpan
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="rounded-lg bg-gray-100 px-4 py-3 text-gray-600">
+          <button type="button" onClick={(e) => { e.stopPropagation(); onCancel(); }} className="rounded-lg bg-gray-100 px-4 py-3 text-gray-600">
             Batal
           </button>
         )}
