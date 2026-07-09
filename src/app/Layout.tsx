@@ -28,7 +28,7 @@ export function Layout() {
         </div>
       </header>
 
-      <main className="flex-1 px-4 py-4 pb-16">
+      <main className="flex-1 px-4 py-4 pb-24">
         <Outlet />
       </main>
 
