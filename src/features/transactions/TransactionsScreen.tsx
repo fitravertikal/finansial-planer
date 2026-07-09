@@ -57,7 +57,7 @@ export function TransactionsScreen() {
       </header>
 
       {editing && (
-        <div className="rounded-xl border border-gray-200 p-4 shadow-sm">
+        <div className="rounded-xl border border-gray-200 p-4 shadow-sm mb-20">
           <h2 className="mb-3 text-sm font-semibold">
             {editing.mode === 'edit' ? 'Edit transaksi' : 'Transaksi baru'}
           </h2>
