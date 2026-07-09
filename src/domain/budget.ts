@@ -63,6 +63,20 @@ function expenseContribution(txn: Transaction): number {
 }
 
 /**
+ * Netted expense spend per category for a month (transfers excluded, refunds
+ * subtracted). Useful for the budgeting screen, which lists every category
+ * regardless of whether it has a budget yet.
+ */
+export function expenseSpentByCategory(month: string, txns: Transaction[]): Map<string, number> {
+  const map = new Map<string, number>();
+  for (const t of txns) {
+    if (t.month !== month || t.isTransfer || t.type !== 'expense') continue;
+    map.set(t.categoryId, (map.get(t.categoryId) ?? 0) + expenseContribution(t));
+  }
+  return map;
+}
+
+/**
  * Compute the full month summary from raw rows. `txns` may include any months;
  * only rows whose `month` matches are considered.
  */
