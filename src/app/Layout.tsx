@@ -32,7 +32,7 @@ export function Layout() {
         <Outlet />
       </main>
 
-      <nav className="sticky bottom-0 grid grid-cols-4 border-t border-gray-100 bg-white">
+      <nav className="sticky bottom-0 z-0 grid grid-cols-4 border-t border-gray-100 bg-white">
         {NAV.map((n) => (
           <NavLink
             key={n.to}
