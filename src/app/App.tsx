@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { createHashRouter, RouterProvider } from 'react-router-dom';
 import { queryClient } from '../hooks/queryClient';
@@ -7,7 +7,16 @@ import { Layout } from './Layout';
 import { TransactionsScreen } from '../features/transactions/TransactionsScreen';
 import { CategoriesScreen } from '../features/categories/CategoriesScreen';
 import { BudgetsScreen } from '../features/budgets/BudgetsScreen';
-import { DashboardScreen } from '../features/dashboard/DashboardScreen';
+
+// Dashboard pulls in Recharts (heavy) — load it only when visited so the
+// initial mobile load stays light.
+const DashboardScreen = lazy(() =>
+  import('../features/dashboard/DashboardScreen').then((m) => ({ default: m.DashboardScreen })),
+);
+
+function Loading() {
+  return <p className="p-8 text-center text-sm text-gray-400">Memuat…</p>;
+}
 
 const router = createHashRouter([
   {
@@ -17,7 +26,14 @@ const router = createHashRouter([
       { index: true, element: <TransactionsScreen /> },
       { path: 'categories', element: <CategoriesScreen /> },
       { path: 'budgets', element: <BudgetsScreen /> },
-      { path: 'dashboard', element: <DashboardScreen /> },
+      {
+        path: 'dashboard',
+        element: (
+          <Suspense fallback={<Loading />}>
+            <DashboardScreen />
+          </Suspense>
+        ),
+      },
     ],
   },
 ]);
@@ -29,9 +45,7 @@ export function App() {
     void seedIfEmpty().then(() => setReady(true));
   }, []);
 
-  if (!ready) {
-    return <p className="p-8 text-center text-sm text-gray-400">Memuat…</p>;
-  }
+  if (!ready) return <Loading />;
 
   return (
     <QueryClientProvider client={queryClient}>
