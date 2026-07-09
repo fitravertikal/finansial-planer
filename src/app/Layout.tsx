@@ -26,6 +26,9 @@ export function Layout() {
           <button onClick={() => setMonth(addMonths(month, 1))} aria-label="Bulan berikutnya" className="px-2 text-gray-400">
             ›
           </button>
+          <NavLink to="/settings" aria-label="Pengaturan" className="pl-1 text-base text-gray-400">
+            ⚙
+          </NavLink>
         </div>
       </header>
 
