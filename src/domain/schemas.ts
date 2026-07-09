@@ -49,6 +49,7 @@ export const Transaction = z.object({
   note: z.string().max(500).optional(),
   isTransfer: z.boolean().default(false), // movement between own accounts — excluded from income/expense
   refundOf: Id.optional(), // if set, this expense nets DOWN its category's spend
+  recurringRuleId: Id.optional(), // set when generated from a RecurringRule
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -65,6 +66,24 @@ export const Budget = z.object({
 });
 export type Budget = z.infer<typeof Budget>;
 
+/** A monthly recurring template (salary, rent, subscriptions). Generates a
+ * normal Transaction (with recurringRuleId) once confirmed each month. */
+export const RecurringRule = z.object({
+  id: Id,
+  type: TxnType,
+  amount: Rupiah,
+  categoryId: Id,
+  paymentMethod: PaymentMethod,
+  note: z.string().max(500).optional(),
+  dayOfMonth: z.number().int().min(1).max(28), // clamp to 28 to avoid month-length bugs
+  startMonth: MonthKey,
+  endMonth: MonthKey.optional(),
+  active: z.boolean().default(true),
+  createdAt: z.string().datetime(),
+  updatedAt: z.string().datetime(),
+});
+export type RecurringRule = z.infer<typeof RecurringRule>;
+
 export const AppMeta = z.object({
   id: z.literal('app'),
   schemaVersion: z.number().int(),
@@ -79,7 +98,7 @@ export function budgetId(month: string, categoryId: string): string {
   return `${month}:${categoryId}`;
 }
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 /** Versioned backup envelope — also the shape a future sync backend would use. */
 export const BackupFile = z.object({
@@ -91,6 +110,7 @@ export const BackupFile = z.object({
     categories: z.array(Category),
     transactions: z.array(Transaction),
     budgets: z.array(Budget),
+    recurringRules: z.array(RecurringRule).default([]),
   }),
 });
 export type BackupFile = z.infer<typeof BackupFile>;

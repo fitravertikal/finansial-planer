@@ -1,6 +1,6 @@
 import type { FinansialDB } from '../../db';
-import type { Budget, Category, Transaction } from '../../../domain/schemas';
-import type { BudgetRepo, CategoryRepo, TransactionRepo } from '../types';
+import type { Budget, Category, RecurringRule, Transaction } from '../../../domain/schemas';
+import type { BudgetRepo, CategoryRepo, RecurringRepo, TransactionRepo } from '../types';
 
 /** IndexedDB-backed implementations of the repository interfaces. */
 
@@ -36,6 +36,18 @@ export function createBudgetRepo(db: FinansialDB): BudgetRepo {
     byMonth: (month: string) => db.budgets.where('month').equals(month).toArray(),
     upsert: async (budget: Budget) => {
       await db.budgets.put(budget);
+    },
+  };
+}
+
+export function createRecurringRepo(db: FinansialDB): RecurringRepo {
+  return {
+    all: () => db.recurringRules.toArray(),
+    put: async (rule: RecurringRule) => {
+      await db.recurringRules.put(rule);
+    },
+    remove: async (id: string) => {
+      await db.recurringRules.delete(id);
     },
   };
 }

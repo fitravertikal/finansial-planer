@@ -7,6 +7,7 @@ import { Layout } from './Layout';
 import { TransactionsScreen } from '../features/transactions/TransactionsScreen';
 import { CategoriesScreen } from '../features/categories/CategoriesScreen';
 import { BudgetsScreen } from '../features/budgets/BudgetsScreen';
+import { RecurringScreen } from '../features/recurring/RecurringScreen';
 
 // Dashboard pulls in Recharts (heavy) — load it only when visited so the
 // initial mobile load stays light.
@@ -34,6 +35,7 @@ const router = createHashRouter([
           </Suspense>
         ),
       },
+      { path: 'recurring', element: <RecurringScreen /> },
     ],
   },
 ]);
