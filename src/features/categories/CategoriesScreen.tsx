@@ -1,6 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useArchiveCategory, useCategories, useSaveCategory } from '../../hooks/useCategories';
 import { FALLBACK_EXPENSE_CATEGORY_ID } from '../../domain/categories';
+import { generateUUID } from '../../domain/uuid';
 import type { Category, TxnType } from '../../domain/schemas';
 
 export function CategoriesScreen() {
@@ -23,7 +24,7 @@ export function CategoriesScreen() {
     if (!trimmed) return;
     const maxOrder = categories.reduce((m, c) => Math.max(m, c.sortOrder), 0);
     const category: Category = {
-      id: crypto.randomUUID(),
+      id: generateUUID(),
       name: trimmed,
       type,
       archived: false,

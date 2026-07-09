@@ -1,4 +1,5 @@
 import { monthOf } from '../../domain/dates';
+import { generateUUID } from '../../domain/uuid';
 import { Transaction, type PaymentMethod, type TxnType } from '../../domain/schemas';
 
 export interface TxnInput {
@@ -19,7 +20,7 @@ export interface TxnInput {
 export function makeTransaction(input: TxnInput, existing?: Transaction): Transaction {
   const now = new Date().toISOString();
   const draft: Transaction = {
-    id: existing?.id ?? crypto.randomUUID(),
+    id: existing?.id ?? generateUUID(),
     type: input.type,
     date: input.date,
     month: monthOf(input.date),
