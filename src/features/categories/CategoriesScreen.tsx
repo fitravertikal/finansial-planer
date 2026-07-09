@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useArchiveCategory, useCategories, useSaveCategory } from '../../hooks/useCategories';
 import { FALLBACK_EXPENSE_CATEGORY_ID } from '../../domain/categories';
 import type { Category, TxnType } from '../../domain/schemas';
@@ -9,6 +9,14 @@ export function CategoriesScreen() {
   const archive = useArchiveCategory();
   const [name, setName] = useState('');
   const [type, setType] = useState<TxnType>('expense');
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  const showFeedback = useCallback((id: string) => {
+    setSavedId(id);
+    clearTimeout(feedbackTimer.current);
+    feedbackTimer.current = setTimeout(() => setSavedId(null), 1500);
+  }, []);
 
   function add() {
     const trimmed = name.trim();
@@ -31,6 +39,7 @@ export function CategoriesScreen() {
     const trimmed = newName.trim();
     if (!trimmed || trimmed === cat.name) return;
     save.mutate({ ...cat, name: trimmed });
+    showFeedback(cat.id);
   }
 
   const groups: { label: string; type: TxnType }[] = [
@@ -78,8 +87,16 @@ export function CategoriesScreen() {
                     onBlur={(e) => rename(c, e.target.value)}
                     className="flex-1 bg-transparent text-sm focus:outline-none"
                   />
+                  {savedId === c.id && (
+                    <span className="text-xs text-emerald-600 animate-pulse">tersimpan</span>
+                  )}
                   {!c.archived && c.id !== FALLBACK_EXPENSE_CATEGORY_ID && (
-                    <button onClick={() => archive.mutate(c.id)} className="text-xs text-gray-400 hover:text-red-500">
+                    <button
+                      onClick={() => {
+                        if (window.confirm('Arsipkan kategori ini?')) archive.mutate(c.id);
+                      }}
+                      className="text-xs text-gray-400 hover:text-red-500"
+                    >
                       arsipkan
                     </button>
                   )}

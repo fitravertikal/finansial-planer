@@ -32,6 +32,7 @@ export function TransactionForm({
   const [date, setDate] = useState<string>(initial?.date ?? todayISO());
   const [note, setNote] = useState<string>(initial?.note ?? '');
   const [isTransfer, setIsTransfer] = useState<boolean>(initial?.isTransfer ?? false);
+  const [amountTouched, setAmountTouched] = useState(false);
 
   const options = useMemo(
     () => categories.filter((c) => c.type === type && !c.archived),
@@ -51,6 +52,7 @@ export function TransactionForm({
   }
 
   function submit(e: React.FormEvent) {
+    e.stopPropagation();
     e.preventDefault();
     if (!canSave) return;
     onSubmit({
@@ -94,10 +96,14 @@ export function TransactionForm({
           inputMode="numeric"
           value={groupDigits(amount)}
           onChange={(e) => setAmount(parseAmountInput(e.target.value))}
+          onBlur={() => setAmountTouched(true)}
           placeholder="0"
           className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-3 text-2xl font-bold tabular-nums focus:border-emerald-500 focus:outline-none"
         />
       </label>
+      {amount === 0 && amountTouched && (
+        <p className="-mt-3 text-xs text-red-500">Masukkan jumlah</p>
+      )}
 
       {/* category */}
       <label className="block">
@@ -116,8 +122,8 @@ export function TransactionForm({
       </label>
 
       {/* payment method */}
-      <div>
-        <span className="text-xs font-medium text-gray-500">Metode</span>
+      <fieldset className="block">
+        <legend className="text-xs font-medium text-gray-500">Metode</legend>
         <div className="mt-1 grid grid-cols-3 gap-2">
           {METHODS.map((m) => (
             <button
@@ -132,7 +138,7 @@ export function TransactionForm({
             </button>
           ))}
         </div>
-      </div>
+      </fieldset>
 
       {/* date + note */}
       <div className="grid grid-cols-2 gap-3">
@@ -145,9 +151,10 @@ export function TransactionForm({
             className="mt-1 w-full rounded-lg border border-gray-300 px-3 py-2 focus:border-emerald-500 focus:outline-none"
           />
         </label>
-        <label className="block">
+        <label htmlFor="tx-note" className="block">
           <span className="text-xs font-medium text-gray-500">Catatan (opsional)</span>
           <input
+            id="tx-note"
             value={note}
             onChange={(e) => setNote(e.target.value)}
             placeholder="—"
@@ -170,7 +177,7 @@ export function TransactionForm({
           Simpan
         </button>
         {onCancel && (
-          <button type="button" onClick={onCancel} className="rounded-lg bg-gray-100 px-4 py-3 text-gray-600">
+          <button type="button" onClick={(e) => { e.stopPropagation(); onCancel(); }} className="rounded-lg bg-gray-100 px-4 py-3 text-gray-600">
             Batal
           </button>
         )}

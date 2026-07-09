@@ -29,6 +29,7 @@ export function BudgetsScreen() {
   const saveBudget = useSaveBudget();
 
   const expenseCats = useMemo(() => categories.filter((c) => c.type === 'expense'), [categories]);
+  const incomeCats = useMemo(() => categories.filter((c) => c.type === 'income'), [categories]);
   const spent = useMemo(() => expenseSpentByCategory(month, txns), [month, txns]);
   const budgetMap = useMemo(() => new Map(budgets.map((b) => [b.categoryId, b])), [budgets]);
   const summary = useMemo(
@@ -73,6 +74,8 @@ export function BudgetsScreen() {
         )}
       </header>
 
+      {/* Expense categories */}
+      <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400">Pengeluaran</h3>
       <ul className="space-y-3">
         {expenseCats.map((c) => {
           const b = budgetMap.get(c.id)?.amount ?? 0;
@@ -123,6 +126,38 @@ export function BudgetsScreen() {
           );
         })}
       </ul>
+
+      {/* Income categories */}
+      {incomeCats.length > 0 && (
+        <>
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-400 pt-2">Pemasukan</h3>
+          <ul className="space-y-3">
+            {incomeCats.map((c) => {
+              const b = budgetMap.get(c.id)?.amount ?? 0;
+              return (
+                <li key={c.id} className="rounded-lg border border-gray-100 p-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-2 text-sm font-medium">
+                      <span className="inline-block h-3 w-3 rounded-full" style={{ background: c.color }} />
+                      {c.name}
+                    </span>
+                    <label className="flex items-center gap-1 text-sm">
+                      <span className="text-xs text-gray-400">Rp</span>
+                      <input
+                        inputMode="numeric"
+                        defaultValue={groupDigits(b)}
+                        onBlur={(e) => setBudget(c.id, e.target.value)}
+                        placeholder="0"
+                        className="w-28 rounded border border-gray-200 px-2 py-1 text-right tabular-nums focus:border-emerald-500 focus:outline-none"
+                      />
+                    </label>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        </>
+      )}
     </div>
   );
 }
