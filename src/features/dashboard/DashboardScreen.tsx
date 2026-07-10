@@ -26,11 +26,25 @@ function Stat({ label, children }: { label: string; children: React.ReactNode })
 
 export function DashboardScreen() {
   const month = useUiStore((s) => s.activeMonth);
-  const { data: categories = [] } = useActiveCategories();
-  const { data: txns = [] } = useTransactions(month);
-  const { data: budgets = [] } = useBudgets(month);
+  const categoriesQ = useActiveCategories();
+  const txnsQ = useTransactions(month);
+  const budgetsQ = useBudgets(month);
+  const allTxnsQ = useAllTransactions();
 
-  const { data: allTxns = [] } = useAllTransactions();
+  const categories = categoriesQ.data ?? [];
+  const txns = txnsQ.data ?? [];
+  const budgets = budgetsQ.data ?? [];
+  const allTxns = allTxnsQ.data ?? [];
+
+  const isLoading = categoriesQ.isLoading || txnsQ.isLoading || budgetsQ.isLoading || allTxnsQ.isLoading;
+  const isError = categoriesQ.isError || txnsQ.isError || budgetsQ.isError || allTxnsQ.isError;
+
+  function retryAll() {
+    categoriesQ.refetch();
+    txnsQ.refetch();
+    budgetsQ.refetch();
+    allTxnsQ.refetch();
+  }
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const s = useMemo(
@@ -58,6 +72,28 @@ export function DashboardScreen() {
   );
 
   const netPositive = s.net >= 0;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-16 text-sm text-gray-400">
+        Memuat data…
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex flex-col items-center gap-3 py-16 text-center">
+        <p className="text-sm text-gray-500">Gagal memuat data dashboard.</p>
+        <button
+          onClick={retryAll}
+          className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white"
+        >
+          Coba lagi
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-5">
