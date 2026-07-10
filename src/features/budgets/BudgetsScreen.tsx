@@ -1,11 +1,12 @@
 import { useMemo } from 'react';
 import { useUiStore } from '../../store/ui';
 import { useActiveCategories } from '../../hooks/useCategories';
-import { useTransactions } from '../../hooks/useTransactions';
-import { useBudgets, useSaveBudget } from '../../hooks/useBudgets';
+import { useAllTransactions, useTransactions } from '../../hooks/useTransactions';
+import { useAllBudgets, useBudgets, useSaveBudget } from '../../hooks/useBudgets';
 import {
   calculateCategoryStatus,
   calculateMonthSummary,
+  effectiveBudget,
   expenseSpentByCategory,
 } from '../../domain/budget';
 import { groupDigits, parseAmountInput } from '../../domain/money';
@@ -26,6 +27,8 @@ export function BudgetsScreen() {
   const { data: txns = [] } = useTransactions(month);
   const { data: budgets = [] } = useBudgets(month);
   const { data: lastMonthBudgets = [] } = useBudgets(prevMonth(month));
+  const { data: allBudgets = [] } = useAllBudgets();
+  const { data: allTxns = [] } = useAllTransactions();
   const saveBudget = useSaveBudget();
 
   const expenseCats = useMemo(() => categories.filter((c) => c.type === 'expense'), [categories]);
@@ -33,15 +36,32 @@ export function BudgetsScreen() {
   const spent = useMemo(() => expenseSpentByCategory(month, txns), [month, txns]);
   const budgetMap = useMemo(() => new Map(budgets.map((b) => [b.categoryId, b])), [budgets]);
   const summary = useMemo(
-    () => calculateMonthSummary(month, txns, budgets, categories),
-    [month, txns, budgets, categories],
+    () => calculateMonthSummary(month, txns, budgets, categories, { budgets: allBudgets, txns: allTxns }),
+    [month, txns, budgets, categories, allBudgets, allTxns],
   );
+
+  function carryOverFor(categoryId: string): number {
+    const b = budgetMap.get(categoryId);
+    if (!b?.rollover) return 0;
+    const budgetsByMonth = new Map(allBudgets.filter((x) => x.categoryId === categoryId).map((x) => [x.month, x]));
+    const spentByMonth = new Map<string, number>();
+    for (const t of allTxns) {
+      if (t.categoryId !== categoryId || t.isTransfer || t.type !== 'expense') continue;
+      spentByMonth.set(t.month, (spentByMonth.get(t.month) ?? 0) + (t.refundOf ? -t.amount : t.amount));
+    }
+    return effectiveBudget(month, categoryId, budgetsByMonth, spentByMonth) - b.amount;
+  }
 
   function setBudget(categoryId: string, raw: string) {
     const amount = parseAmountInput(raw);
     const existing = budgetMap.get(categoryId);
     if ((existing?.amount ?? 0) === amount) return;
     saveBudget.mutate(makeBudget(month, categoryId, amount, existing));
+  }
+
+  function toggleRollover(categoryId: string, next: boolean) {
+    const existing = budgetMap.get(categoryId);
+    saveBudget.mutate(makeBudget(month, categoryId, existing?.amount ?? 0, existing, next));
   }
 
   function copyLastMonth() {
@@ -82,6 +102,7 @@ export function BudgetsScreen() {
           const s = spent.get(c.id) ?? 0;
           const status = calculateCategoryStatus(c.id, b, s);
           const width = Math.min(100, Math.round(status.pctUsed * 100));
+          const carry = carryOverFor(c.id);
           return (
             <li key={c.id} className="rounded-lg border border-gray-100 p-3">
               <div className="flex items-center justify-between gap-2">
@@ -100,6 +121,21 @@ export function BudgetsScreen() {
                   />
                 </label>
               </div>
+              <label className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
+                <input
+                  type="checkbox"
+                  checked={budgetMap.get(c.id)?.rollover ?? false}
+                  onChange={(e) => toggleRollover(c.id, e.target.checked)}
+                  className="h-3.5 w-3.5"
+                />
+                Bawa sisa ke bulan depan
+              </label>
+              {carry !== 0 && (
+                <p className={`mt-0.5 text-xs ${carry > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                  termasuk carry-over {carry > 0 ? '+' : '−'}
+                  <Money amount={Math.abs(carry)} />
+                </p>
+              )}
 
               {b > 0 && (
                 <div className="mt-2">
