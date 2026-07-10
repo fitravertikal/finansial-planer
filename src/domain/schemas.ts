@@ -63,7 +63,8 @@ export const Budget = z.object({
   month: MonthKey,
   categoryId: Id,
   amount: Rupiah,
-  rollover: z.boolean().default(false), // wired for later; not surfaced in v1
+  rollover: z.boolean().default(false),
+  rolloverSince: MonthKey.optional(), // month rollover was (most recently) turned on
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
   deletedAt: z.string().datetime().optional(), // sync tombstone
@@ -108,7 +109,7 @@ export function budgetId(month: string, categoryId: string): string {
   return `${month}:${categoryId}`;
 }
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 /** Versioned backup envelope — also the shape a future sync backend would use. */
 export const BackupFile = z.object({
