@@ -12,7 +12,7 @@ import {
 import { groupDigits, parseAmountInput } from '../../domain/money';
 import { prevMonth } from '../../domain/dates';
 import { Money } from '../../components/Money';
-import { makeBudget } from './model';
+import { makeBudget, resolveExistingBudget } from './model';
 import type { BudgetStatus } from '../../domain/budget';
 
 const BAR: Record<BudgetStatus, string> = {
@@ -35,6 +35,10 @@ export function BudgetsScreen() {
   const incomeCats = useMemo(() => categories.filter((c) => c.type === 'income'), [categories]);
   const spent = useMemo(() => expenseSpentByCategory(month, txns), [month, txns]);
   const budgetMap = useMemo(() => new Map(budgets.map((b) => [b.categoryId, b])), [budgets]);
+  const lastMonthBudgetMap = useMemo(
+    () => new Map(lastMonthBudgets.map((b) => [b.categoryId, b])),
+    [lastMonthBudgets],
+  );
   const summary = useMemo(
     () => calculateMonthSummary(month, txns, budgets, categories, { budgets: allBudgets, txns: allTxns }),
     [month, txns, budgets, categories, allBudgets, allTxns],
@@ -52,15 +56,21 @@ export function BudgetsScreen() {
     return effectiveBudget(month, categoryId, budgetsByMonth, spentByMonth) - b.amount;
   }
 
+  // Falls back to last month's rollover state when this month has no row yet,
+  // so the chain continues instead of restarting (see resolveExistingBudget).
+  function existingWithInheritance(categoryId: string) {
+    return resolveExistingBudget(budgetMap.get(categoryId), lastMonthBudgetMap.get(categoryId));
+  }
+
   function setBudget(categoryId: string, raw: string) {
     const amount = parseAmountInput(raw);
-    const existing = budgetMap.get(categoryId);
-    if ((existing?.amount ?? 0) === amount) return;
+    const existing = existingWithInheritance(categoryId);
+    if ((existing?.amount ?? 0) === amount && budgetMap.has(categoryId)) return;
     saveBudget.mutate(makeBudget(month, categoryId, amount, existing));
   }
 
   function toggleRollover(categoryId: string, next: boolean) {
-    const existing = budgetMap.get(categoryId);
+    const existing = existingWithInheritance(categoryId);
     saveBudget.mutate(makeBudget(month, categoryId, existing?.amount ?? 0, existing, next));
   }
 
@@ -124,7 +134,7 @@ export function BudgetsScreen() {
               <label className="mt-1.5 flex items-center gap-1.5 text-xs text-gray-500">
                 <input
                   type="checkbox"
-                  checked={budgetMap.get(c.id)?.rollover ?? false}
+                  checked={existingWithInheritance(c.id)?.rollover ?? false}
                   onChange={(e) => toggleRollover(c.id, e.target.checked)}
                   className="h-3.5 w-3.5"
                 />
