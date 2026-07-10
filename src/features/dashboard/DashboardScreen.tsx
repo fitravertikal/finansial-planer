@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useUiStore } from '../../store/ui';
 import { useActiveCategories } from '../../hooks/useCategories';
 import { useAllTransactions, useTransactions } from '../../hooks/useTransactions';
-import { useBudgets } from '../../hooks/useBudgets';
+import { useAllBudgets, useBudgets } from '../../hooks/useBudgets';
 import { calculateMonthSummary, monthlyTotals, type BudgetStatus } from '../../domain/budget';
 import { addMonths } from '../../domain/dates';
 import { Money } from '../../components/Money';
@@ -30,26 +30,31 @@ export function DashboardScreen() {
   const txnsQ = useTransactions(month);
   const budgetsQ = useBudgets(month);
   const allTxnsQ = useAllTransactions();
+  const allBudgetsQ = useAllBudgets();
 
   const categories = categoriesQ.data ?? [];
   const txns = txnsQ.data ?? [];
   const budgets = budgetsQ.data ?? [];
   const allTxns = allTxnsQ.data ?? [];
+  const allBudgets = allBudgetsQ.data ?? [];
 
-  const isLoading = categoriesQ.isLoading || txnsQ.isLoading || budgetsQ.isLoading || allTxnsQ.isLoading;
-  const isError = categoriesQ.isError || txnsQ.isError || budgetsQ.isError || allTxnsQ.isError;
+  const isLoading =
+    categoriesQ.isLoading || txnsQ.isLoading || budgetsQ.isLoading || allTxnsQ.isLoading || allBudgetsQ.isLoading;
+  const isError =
+    categoriesQ.isError || txnsQ.isError || budgetsQ.isError || allTxnsQ.isError || allBudgetsQ.isError;
 
   function retryAll() {
     categoriesQ.refetch();
     txnsQ.refetch();
     budgetsQ.refetch();
     allTxnsQ.refetch();
+    allBudgetsQ.refetch();
   }
 
   const catMap = useMemo(() => new Map(categories.map((c) => [c.id, c])), [categories]);
   const s = useMemo(
-    () => calculateMonthSummary(month, txns, budgets, categories),
-    [month, txns, budgets, categories],
+    () => calculateMonthSummary(month, txns, budgets, categories, { budgets: allBudgets, txns: allTxns }),
+    [month, txns, budgets, categories, allBudgets, allTxns],
   );
 
   // Trailing 6 months ending at the active month.
@@ -153,6 +158,8 @@ export function DashboardScreen() {
         <ul className="space-y-3">
           {s.categories.map((row) => {
             const cat = catMap.get(row.categoryId);
+            const rawBudget = budgets.find((b) => b.categoryId === row.categoryId && b.month === month)?.amount ?? 0;
+            const carry = row.budget - rawBudget;
             const width = Math.min(100, Math.round(row.pctUsed * 100));
             return (
               <li key={row.categoryId}>
@@ -175,6 +182,12 @@ export function DashboardScreen() {
                 {row.overBudget && (
                   <p className="mt-0.5 text-xs font-medium text-red-600">
                     Lewat budget <Money amount={Math.abs(row.remaining)} />
+                  </p>
+                )}
+                {carry !== 0 && (
+                  <p className={`mt-0.5 text-xs ${carry > 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    termasuk carry-over {carry > 0 ? '+' : '−'}
+                    <Money amount={Math.abs(carry)} />
                   </p>
                 )}
               </li>
