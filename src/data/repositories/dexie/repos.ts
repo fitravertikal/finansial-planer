@@ -45,6 +45,7 @@ export function createBudgetRepo(db: FinansialDB): BudgetRepo {
   return {
     byMonth: async (month: string) =>
       live(await db.budgets.where('month').equals(month).toArray()),
+    all: async () => live(await db.budgets.toArray()),
     upsert: async (budget: Budget) => {
       await db.budgets.put(budget);
     },
