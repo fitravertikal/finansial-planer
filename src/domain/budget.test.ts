@@ -261,3 +261,65 @@ describe('effectiveBudget', () => {
     expect(effectiveBudget('2026-08', CAT, budgets, spent)).toBe(1_100_000);
   });
 });
+
+describe('calculateMonthSummary with rollover history', () => {
+  it('uses effective (carried) budget for a rollover category, base amount otherwise', () => {
+    const categories = [expenseCat('cat-makan'), expenseCat('cat-transport')];
+
+    const juneMakan: Budget = {
+      id: budgetId('2026-06', 'cat-makan'),
+      month: '2026-06',
+      categoryId: 'cat-makan',
+      amount: 1_000_000,
+      rollover: true,
+      rolloverSince: '2026-06',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const julyMakan: Budget = {
+      id: budgetId('2026-07', 'cat-makan'),
+      month: '2026-07',
+      categoryId: 'cat-makan',
+      amount: 1_000_000,
+      rollover: true,
+      rolloverSince: '2026-06',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const julyTransport = budget('cat-transport', 500_000); // rollover: false
+
+    const juneTxns = [
+      txn({ type: 'expense', categoryId: 'cat-makan', amount: 700_000, month: '2026-06', date: '2026-06-10' }),
+    ];
+    const julyTxns = [
+      txn({ type: 'expense', categoryId: 'cat-makan', amount: 200_000 }),
+      txn({ type: 'expense', categoryId: 'cat-transport', amount: 100_000 }),
+    ];
+
+    const s = calculateMonthSummary(
+      '2026-07',
+      julyTxns,
+      [julyMakan, julyTransport],
+      categories,
+      { budgets: [juneMakan, julyMakan, julyTransport], txns: [...juneTxns, ...julyTxns] },
+    );
+
+    const makan = s.categories.find((c) => c.categoryId === 'cat-makan')!;
+    // July effective budget = 1,000,000 base + (1,000,000 - 700,000 spent in June) = 1,300,000
+    expect(makan.budget).toBe(1_300_000);
+    expect(makan.remaining).toBe(1_300_000 - 200_000);
+
+    const transport = s.categories.find((c) => c.categoryId === 'cat-transport')!;
+    // rollover off => unaffected, plain base amount
+    expect(transport.budget).toBe(500_000);
+  });
+
+  it('omitting history leaves behavior identical to plain Budget.amount', () => {
+    const categories = [expenseCat('cat-makan')];
+    const b = budget('cat-makan', 1_000_000); // rollover: false
+    const txns = [txn({ type: 'expense', categoryId: 'cat-makan', amount: 400_000 })];
+    const s = calculateMonthSummary('2026-07', txns, [b], categories);
+    const makan = s.categories.find((c) => c.categoryId === 'cat-makan')!;
+    expect(makan.budget).toBe(1_000_000);
+  });
+});

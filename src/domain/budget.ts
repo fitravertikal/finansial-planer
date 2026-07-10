@@ -153,6 +153,7 @@ export function calculateMonthSummary(
   txns: Transaction[],
   budgets: Budget[],
   categories: Category[],
+  history?: { budgets: Budget[]; txns: Transaction[] },
 ): MonthSummary {
   const inMonth = txns.filter((t) => t.month === month && !t.isTransfer);
 
@@ -172,6 +173,23 @@ export function calculateMonthSummary(
   const budgetByCategory = new Map<string, number>();
   for (const b of budgets) {
     if (b.month === month) budgetByCategory.set(b.categoryId, b.amount);
+  }
+
+  if (history) {
+    const rolloverCategoryIds = new Set(
+      budgets.filter((b) => b.month === month && b.rollover).map((b) => b.categoryId),
+    );
+    for (const categoryId of rolloverCategoryIds) {
+      const budgetsByMonth = new Map(
+        history.budgets.filter((b) => b.categoryId === categoryId).map((b) => [b.month, b]),
+      );
+      const spentByMonth = new Map<string, number>();
+      for (const t of history.txns) {
+        if (t.categoryId !== categoryId || t.isTransfer || t.type !== 'expense') continue;
+        spentByMonth.set(t.month, (spentByMonth.get(t.month) ?? 0) + expenseContribution(t));
+      }
+      budgetByCategory.set(categoryId, effectiveBudget(month, categoryId, budgetsByMonth, spentByMonth));
+    }
   }
 
   // Every expense category that has a budget this month OR any spend this month.
