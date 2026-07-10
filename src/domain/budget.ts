@@ -1,3 +1,4 @@
+import { addMonths } from './dates';
 import type { Budget, Category, Transaction } from './schemas';
 
 /**
@@ -76,6 +77,49 @@ export function expenseSpentByCategory(month: string, txns: Transaction[]): Map<
   return map;
 }
 
+/**
+ * Effective budget for (categoryId, month) given the category's rollover
+ * start point. Walks back to `rolloverSince` (inclusive), accumulating each
+ * month's (base budget − spent). A month with no Budget row contributes a
+ * base of 0; its recorded spend still counts against the chain, so a gap in
+ * the history doesn't break the walk.
+ */
+function walkRollover(
+  month: string,
+  rolloverSince: string,
+  budgetsByMonth: Map<string, Budget>,
+  spentByMonth: Map<string, number>,
+): number {
+  const base = budgetsByMonth.get(month)?.amount ?? 0;
+  if (month <= rolloverSince) return base;
+
+  const prevMonthKey = addMonths(month, -1);
+  const prevEffective = walkRollover(prevMonthKey, rolloverSince, budgetsByMonth, spentByMonth);
+  const prevSpent = spentByMonth.get(prevMonthKey) ?? 0;
+  return base + (prevEffective - prevSpent);
+}
+
+/**
+ * Effective budget for (categoryId, month), accounting for chained rollover.
+ * Rollover on/off and its start month are read from `month`'s own Budget row
+ * (rollover is a per-category setting the user toggles going forward; the
+ * row for the month being viewed is authoritative for whether the chain
+ * applies to it). Returns the plain base amount when rollover is off.
+ * `categoryId` isn't read directly (the caller already scopes `budgetsByMonth`
+ * / `spentByMonth` to one category) but is kept in the signature for call-site
+ * clarity and symmetry with `expenseSpentByCategory`.
+ */
+export function effectiveBudget(
+  month: string,
+  _categoryId: string,
+  budgetsByMonth: Map<string, Budget>,
+  spentByMonth: Map<string, number>,
+): number {
+  const current = budgetsByMonth.get(month);
+  if (!current?.rollover || !current.rolloverSince) return current?.amount ?? 0;
+  return walkRollover(month, current.rolloverSince, budgetsByMonth, spentByMonth);
+}
+
 export interface MonthTotals {
   month: string;
   income: number;
@@ -109,6 +153,7 @@ export function calculateMonthSummary(
   txns: Transaction[],
   budgets: Budget[],
   categories: Category[],
+  history?: { budgets: Budget[]; txns: Transaction[] },
 ): MonthSummary {
   const inMonth = txns.filter((t) => t.month === month && !t.isTransfer);
 
@@ -128,6 +173,23 @@ export function calculateMonthSummary(
   const budgetByCategory = new Map<string, number>();
   for (const b of budgets) {
     if (b.month === month) budgetByCategory.set(b.categoryId, b.amount);
+  }
+
+  if (history) {
+    const rolloverCategoryIds = new Set(
+      budgets.filter((b) => b.month === month && b.rollover).map((b) => b.categoryId),
+    );
+    for (const categoryId of rolloverCategoryIds) {
+      const budgetsByMonth = new Map(
+        history.budgets.filter((b) => b.categoryId === categoryId).map((b) => [b.month, b]),
+      );
+      const spentByMonth = new Map<string, number>();
+      for (const t of history.txns) {
+        if (t.categoryId !== categoryId || t.isTransfer || t.type !== 'expense') continue;
+        spentByMonth.set(t.month, (spentByMonth.get(t.month) ?? 0) + expenseContribution(t));
+      }
+      budgetByCategory.set(categoryId, effectiveBudget(month, categoryId, budgetsByMonth, spentByMonth));
+    }
   }
 
   // Every expense category that has a budget this month OR any spend this month.

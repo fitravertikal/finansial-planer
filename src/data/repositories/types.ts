@@ -23,6 +23,7 @@ export interface TransactionRepo {
 
 export interface BudgetRepo {
   byMonth(month: string): Promise<Budget[]>;
+  all(): Promise<Budget[]>;
   upsert(budget: Budget): Promise<void>;
 }
 

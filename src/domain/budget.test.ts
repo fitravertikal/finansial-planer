@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   calculateCategoryStatus,
   calculateMonthSummary,
+  effectiveBudget,
   expenseSpentByCategory,
   monthlyTotals,
 } from './budget';
@@ -157,5 +158,168 @@ describe('calculateMonthSummary — July 2026 worked example', () => {
     expect(series).toHaveLength(2);
     expect(series[0]).toEqual({ month: '2026-06', income: 0, expense: 0 }); // no June data
     expect(series[1]).toEqual({ month: '2026-07', income: 12_000_000, expense: 5_000_000 });
+  });
+});
+
+describe('effectiveBudget', () => {
+  const CAT = 'cat-makan';
+
+  function b(month: string, amount: number, rollover: boolean, rolloverSince?: string): Budget {
+    return {
+      id: budgetId(month, CAT),
+      month,
+      categoryId: CAT,
+      amount,
+      rollover,
+      rolloverSince,
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+  }
+
+  it('rollover off => effective budget is just the base amount', () => {
+    const budgets = new Map([['2026-07', b('2026-07', 1_000_000, false)]]);
+    const spent = new Map([['2026-07', 1_000_000_000]]); // irrelevant when rollover is off
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(1_000_000);
+  });
+
+  it('starting month (month === rolloverSince) => base amount, no carry-in', () => {
+    const budgets = new Map([['2026-07', b('2026-07', 1_000_000, true, '2026-07')]]);
+    const spent = new Map([['2026-07', 700_000]]);
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(1_000_000);
+  });
+
+  it('one month of surplus carries forward', () => {
+    const budgets = new Map([
+      ['2026-06', b('2026-06', 1_000_000, true, '2026-06')],
+      ['2026-07', b('2026-07', 1_000_000, true, '2026-06')],
+    ]);
+    const spent = new Map([
+      ['2026-06', 700_000], // 300k surplus
+      ['2026-07', 0],
+    ]);
+    // July = 1,000,000 base + (1,000,000 - 700,000) carried from June = 1,300,000
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(1_300_000);
+  });
+
+  it('3-month surplus chain accumulates', () => {
+    const budgets = new Map([
+      ['2026-05', b('2026-05', 1_000_000, true, '2026-05')],
+      ['2026-06', b('2026-06', 1_000_000, true, '2026-05')],
+      ['2026-07', b('2026-07', 1_000_000, true, '2026-05')],
+    ]);
+    const spent = new Map([
+      ['2026-05', 800_000], // +200k
+      ['2026-06', 900_000], // +100k on top of carried 1,200,000 => effective 1,200,000, spend 900k => +300k surplus
+      ['2026-07', 0],
+    ]);
+    // May: effective 1,000,000 (start month)
+    // June: 1,000,000 + (1,000,000 - 800,000) = 1,200,000 effective; spent 900,000 => surplus 300,000
+    // July: 1,000,000 + (1,200,000 - 900,000) = 1,300,000
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(1_300_000);
+  });
+
+  it('deficit chain reduces (can go negative) effective budget', () => {
+    const budgets = new Map([
+      ['2026-06', b('2026-06', 500_000, true, '2026-06')],
+      ['2026-07', b('2026-07', 500_000, true, '2026-06')],
+    ]);
+    const spent = new Map([
+      ['2026-06', 700_000], // 200k over
+      ['2026-07', 0],
+    ]);
+    // July = 500,000 + (500,000 - 700,000) = 300,000
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(300_000);
+  });
+
+  it('rollover enabled mid-history: prior-to-rolloverSince spend is ignored', () => {
+    const budgets = new Map([
+      ['2026-06', b('2026-06', 500_000, false)], // rollover was off in June
+      ['2026-07', b('2026-07', 500_000, true, '2026-07')], // turned on starting July
+    ]);
+    const spent = new Map([
+      ['2026-06', 5_000_000], // wildly over budget in June, but must NOT affect July
+      ['2026-07', 0],
+    ]);
+    expect(effectiveBudget('2026-07', CAT, budgets, spent)).toBe(500_000);
+  });
+
+  it('missing budget row for an intervening month treats its base as 0, spend still counts', () => {
+    const budgets = new Map([
+      ['2026-06', b('2026-06', 1_000_000, true, '2026-06')],
+      // 2026-07: no Budget row at all (category had no budget set that month)
+      ['2026-08', b('2026-08', 1_000_000, true, '2026-06')],
+    ]);
+    const spent = new Map([
+      ['2026-06', 800_000], // +200k
+      ['2026-07', 100_000], // no budget row => base 0, so this month contributes 0 - 100,000 = -100,000
+      ['2026-08', 0],
+    ]);
+    // June: effective 1,000,000 (start), surplus 200,000
+    // July: base 0 + carried 200,000 = 200,000 effective; spent 100,000 => surplus 100,000
+    // August: 1,000,000 + 100,000 = 1,100,000
+    expect(effectiveBudget('2026-08', CAT, budgets, spent)).toBe(1_100_000);
+  });
+});
+
+describe('calculateMonthSummary with rollover history', () => {
+  it('uses effective (carried) budget for a rollover category, base amount otherwise', () => {
+    const categories = [expenseCat('cat-makan'), expenseCat('cat-transport')];
+
+    const juneMakan: Budget = {
+      id: budgetId('2026-06', 'cat-makan'),
+      month: '2026-06',
+      categoryId: 'cat-makan',
+      amount: 1_000_000,
+      rollover: true,
+      rolloverSince: '2026-06',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const julyMakan: Budget = {
+      id: budgetId('2026-07', 'cat-makan'),
+      month: '2026-07',
+      categoryId: 'cat-makan',
+      amount: 1_000_000,
+      rollover: true,
+      rolloverSince: '2026-06',
+      createdAt: NOW,
+      updatedAt: NOW,
+    };
+    const julyTransport = budget('cat-transport', 500_000); // rollover: false
+
+    const juneTxns = [
+      txn({ type: 'expense', categoryId: 'cat-makan', amount: 700_000, month: '2026-06', date: '2026-06-10' }),
+    ];
+    const julyTxns = [
+      txn({ type: 'expense', categoryId: 'cat-makan', amount: 200_000 }),
+      txn({ type: 'expense', categoryId: 'cat-transport', amount: 100_000 }),
+    ];
+
+    const s = calculateMonthSummary(
+      '2026-07',
+      julyTxns,
+      [julyMakan, julyTransport],
+      categories,
+      { budgets: [juneMakan, julyMakan, julyTransport], txns: [...juneTxns, ...julyTxns] },
+    );
+
+    const makan = s.categories.find((c) => c.categoryId === 'cat-makan')!;
+    // July effective budget = 1,000,000 base + (1,000,000 - 700,000 spent in June) = 1,300,000
+    expect(makan.budget).toBe(1_300_000);
+    expect(makan.remaining).toBe(1_300_000 - 200_000);
+
+    const transport = s.categories.find((c) => c.categoryId === 'cat-transport')!;
+    // rollover off => unaffected, plain base amount
+    expect(transport.budget).toBe(500_000);
+  });
+
+  it('omitting history leaves behavior identical to plain Budget.amount', () => {
+    const categories = [expenseCat('cat-makan')];
+    const b = budget('cat-makan', 1_000_000); // rollover: false
+    const txns = [txn({ type: 'expense', categoryId: 'cat-makan', amount: 400_000 })];
+    const s = calculateMonthSummary('2026-07', txns, [b], categories);
+    const makan = s.categories.find((c) => c.categoryId === 'cat-makan')!;
+    expect(makan.budget).toBe(1_000_000);
   });
 });

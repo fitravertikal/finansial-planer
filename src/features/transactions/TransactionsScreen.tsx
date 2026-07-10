@@ -116,7 +116,9 @@ export function TransactionsScreen() {
                 }`}
               />
               <button
-                onClick={() => del.mutate(t.id)}
+                onClick={() => {
+                  if (window.confirm('Hapus transaksi ini?')) del.mutate(t.id);
+                }}
                 aria-label="Hapus"
                 className="text-gray-300 hover:text-red-500"
               >
