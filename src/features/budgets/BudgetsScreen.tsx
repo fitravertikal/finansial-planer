@@ -76,7 +76,8 @@ export function BudgetsScreen() {
 
   function copyLastMonth() {
     for (const b of lastMonthBudgets) {
-      saveBudget.mutate(makeBudget(month, b.categoryId, b.amount));
+      const existing = resolveExistingBudget(undefined, b);
+      saveBudget.mutate(makeBudget(month, b.categoryId, b.amount, existing));
     }
   }
 

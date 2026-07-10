@@ -132,4 +132,23 @@ describe('resolveExistingBudget (cross-month rollover inheritance)', () => {
     expect(existing).toBe(julyBudgetOff);
     expect(existing?.rollover).toBe(false);
   });
+
+  // copyLastMonth() calls resolveExistingBudget(undefined, b) then makeBudget
+  // with no rolloverOverride, for every category in last month's budgets —
+  // this must carry an active rollover chain into the copied month too.
+  it('copyLastMonth-style call (resolveExistingBudget(undefined, b) + makeBudget with no override) carries an active chain forward', () => {
+    const juneBudget = makeBudget('2026-06', 'cat-makan', 1_000_000, undefined, true);
+    const existing = resolveExistingBudget(undefined, juneBudget);
+    const copiedJuly = makeBudget('2026-07', 'cat-makan', juneBudget.amount, existing);
+    expect(copiedJuly.rollover).toBe(true);
+    expect(copiedJuly.rolloverSince).toBe('2026-06');
+  });
+
+  it('copyLastMonth-style call does not turn on rollover for a category that had it off', () => {
+    const juneBudget = makeBudget('2026-06', 'cat-belanja', 500_000, undefined, false);
+    const existing = resolveExistingBudget(undefined, juneBudget);
+    const copiedJuly = makeBudget('2026-07', 'cat-belanja', juneBudget.amount, existing);
+    expect(copiedJuly.rollover).toBe(false);
+    expect(copiedJuly.rolloverSince).toBeUndefined();
+  });
 });
