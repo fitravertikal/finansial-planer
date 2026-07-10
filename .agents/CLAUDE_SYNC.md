@@ -5,7 +5,7 @@
 | Config | Value |
 |---|---|
 | **Worker URL** | `https://sync.epslab.id` |
-| **Space Key** | `mtx-oNLYOH1JH3BkwJ3NM3rgQADTLcofNK3-0IbuLE8` |
+| **Space Key** | *(set per-device in app Settings — never committed)* |
 
 ## API Contract
 
@@ -56,7 +56,7 @@ LWW by `updatedAt`. Tombstones via `deletedAt` field.
 
 All requests require:
 ```
-Authorization: Bearer ***
+Authorization: Bearer <space-key>
 
 ## Data Model
 
